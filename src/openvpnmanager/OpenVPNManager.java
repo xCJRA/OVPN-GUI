@@ -21,10 +21,15 @@ public class OpenVPNManager extends JFrame {
     private JButton disconnectButton;
     private JTextArea logArea;
     private JLabel statusLabel;
+    private JLabel timerLabel;
     
     private Process vpnProcess;
     private File selectedConfigFile;
     private volatile boolean isConnected = false;
+    
+    
+    private Timer connectionTimer;
+    private long connectionStartTime;
     
     // Colores para el estado
     private static final Color COLOR_DISCONNECTED = new Color(220, 53, 69);
@@ -96,6 +101,7 @@ public class OpenVPNManager extends JFrame {
         String path = "/home/cjra/Workplace/VPN/profiles/";
         filePathField = new JTextField(path);
         filePathField.setEditable(true);
+        filePathField.addActionListener(e -> selectConfigFile());
         panel.add(filePathField, gbc);
         
         gbc.gridx = 2;
@@ -176,13 +182,23 @@ public class OpenVPNManager extends JFrame {
      * Crea el panel de estado en la parte inferior
      */
     private JPanel createStatusPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+//        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+//        
+//        statusLabel = new JLabel("● Desconectado");
+//        statusLabel.setForeground(COLOR_DISCONNECTED);
+//        statusLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+//        panel.add(statusLabel);
+        JPanel panel = new JPanel(new BorderLayout());
         
         statusLabel = new JLabel("● Desconectado");
         statusLabel.setForeground(COLOR_DISCONNECTED);
         statusLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        panel.add(statusLabel);
+        panel.add(statusLabel, BorderLayout.WEST);
         
+        timerLabel = new JLabel("00:00:00");
+        timerLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, 14));
+        timerLabel.setForeground(Color.GRAY);
+        panel.add(timerLabel, BorderLayout.EAST);
         return panel;
     }
     
@@ -368,6 +384,7 @@ public class OpenVPNManager extends JFrame {
                         connectButton.setEnabled(false);
                         disconnectButton.setEnabled(true);
                         appendLog("\n✓ Conexión establecida exitosamente");
+                        startTimer();
                     });
                 } else if (line.contains("AUTH_FAILED")) {
                     SwingUtilities.invokeLater(() -> {
@@ -420,6 +437,7 @@ public class OpenVPNManager extends JFrame {
         connectButton.setEnabled(true);
         disconnectButton.setEnabled(false);
         vpnProcess = null;
+        stopTimer();
     }
     
     /**
@@ -456,5 +474,34 @@ public class OpenVPNManager extends JFrame {
             manager.setVisible(true);
         });
     }
+    private void startTimer() {
+        connectionStartTime = System.currentTimeMillis();
+        
+        if (connectionTimer != null) {
+            connectionTimer.stop();
+        }
+        
+        connectionTimer = new Timer(1000, e -> updateTimer());
+        connectionTimer.start();
+    }
     
+    private void stopTimer() {
+        if (connectionTimer != null) {
+            connectionTimer.stop();
+            connectionTimer = null;
+        }
+        timerLabel.setText("00:00:00");
+        timerLabel.setForeground(Color.GRAY);
+    }
+    
+    private void updateTimer() {
+        long elapsedMillis = System.currentTimeMillis() - connectionStartTime;
+        long seconds = (elapsedMillis / 1000) % 60;
+        long minutes = (elapsedMillis / (1000 * 60)) % 60;
+        long hours = (elapsedMillis / (1000 * 60 * 60));
+        
+        String timeStr = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        timerLabel.setText(timeStr);
+        timerLabel.setForeground(COLOR_CONNECTED);
+    }
 }
